@@ -30,7 +30,127 @@ class Segment {
 
 class SegmentSet
 {
+	public static class SegmentTreeNode
+	{
+		public long total = 0, added = 0;
+		public long l = 0, r = 0; // to avoid int overflows
+		public SegmentTreeNode leftNode = null, rightNode = null;
+		
+		public SegmentTreeNode(long total, long added, long l, long r) {
+			this.total = total;
+			this.added = added;
+			this.l = l;
+			this.r = r;
+		}
+		
+		public SegmentTreeNode(long l, long r) {
+			this.l = l;
+			this.r = r;
+		}
+		
+		public SegmentTreeNode() {
+			
+		}
+		
+		public void addSegment(long segl, long segr) { // to avoid int overflows
+			if (this.r <= segl || segr <= this.l) {
+				return;
+			}
+			if (segl >= segr) {
+				return;
+			}
+			if (segl == this.l && segr == this.r) {
+				this.added++;
+				this.total = this.r - this.l;
+				return;
+			}
+			
+			long m = (this.l + this.r) / 2;
+			long lsegl = segl, lsegr = Math.min(segr, m), rsegl = Math.max(segl, m), rsegr = segr;
+			
+			// Left part
+			if (lsegl < lsegr) {
+				if (this.leftNode == null) {
+					this.leftNode = new SegmentTreeNode(this.l, m);
+				}
+				this.leftNode.addSegment(lsegl, lsegr);
+			}
+			
+			// Right part
+			if (rsegl < rsegr) {
+				if (this.rightNode == null) {
+					this.rightNode = new SegmentTreeNode(m, this.r);
+				}
+				this.rightNode.addSegment(rsegl, rsegr);
+			}
+			
+			if (this.added > 0) {
+				this.total = this.r - this.l;
+			} else {
+				this.total = 0;
+				if (this.leftNode != null)
+					this.total += this.leftNode.total;
+				if (this.rightNode != null)
+					this.total += this.rightNode.total;
+			}
+				
+		}
+		
+		public void removeSegment(long segl, long segr) {
+			if (this.r <= segl || segr <= this.l) {
+				return;
+			}
+			if (segl >= segr) {
+				return;
+			}
+			if (segl == this.l && segr == this.r) {
+				this.added--; // this.added guaranteed to be positive
+				if (this.added > 0)
+					this.total = this.r - this.l;
+				else {
+					this.total = 0;
+					if (this.leftNode != null)
+						this.total += this.leftNode.total;
+					if (this.rightNode != null)
+						this.total += this.rightNode.total;
+				}
+				return;
+			}
+			
+			long m = (this.l + this.r) / 2;
+			long lsegl = segl, lsegr = Math.min(segr, m), rsegl = Math.max(segl, m), rsegr = segr;
+			
+			// Left part
+			if (lsegl < lsegr) {
+				if (this.leftNode == null) {
+					this.leftNode = new SegmentTreeNode(this.l, m);
+				}
+				this.leftNode.removeSegment(lsegl, lsegr);
+			}
+			
+			// Right part
+			if (rsegl < rsegr) {
+				if (this.rightNode == null) {
+					this.rightNode = new SegmentTreeNode(m, this.r);
+				}
+				this.rightNode.removeSegment(rsegl, rsegr);
+			}
+			
+			if (this.added > 0) {
+				this.total = this.r - this.l;
+			} else {
+				this.total = 0;
+				if (this.leftNode != null)
+					this.total += this.leftNode.total;
+				if (this.rightNode != null)
+					this.total += this.rightNode.total;
+			}
+		}
+	}
+	
+	
 	public ArrayList<Segment> segments = null;
+	public SegmentTreeNode root = new SegmentTreeNode(Integer.MIN_VALUE, Integer.MAX_VALUE);
 	
 	public SegmentSet() {
 		this.segments = new ArrayList<Segment>();
@@ -86,6 +206,18 @@ class SegmentSet
 				return;
 			}
 		}
+	}
+	
+	public long coversLengthOptimized() {
+		return this.root.total;
+	}
+	
+	public void addOptimized(Segment sgt) {
+		this.root.addSegment(sgt.l, sgt.r);
+	}
+	
+	public void removeOptimized(Segment sgt) {
+		this.root.removeSegment(sgt.l, sgt.r);
 	}
 }
 
@@ -165,16 +297,16 @@ public class Main {
 			if (side.left) {
 				if (firstChangedFlag) {
 					firstChangedFlag = false;
-					activeSet.add(new Segment(side.rect.y_left_lower, side.rect.y_right_upper));
+					activeSet.addOptimized(new Segment(side.rect.y_left_lower, side.rect.y_right_upper));
 					lastChanged = side.rect.x_left_lower;
 				} else {
-					res += activeSet.coversLength() * (side.rect.x_left_lower - lastChanged);
-					activeSet.add(new Segment(side.rect.y_left_lower, side.rect.y_right_upper));
+					res += activeSet.coversLengthOptimized() * (side.rect.x_left_lower - lastChanged);
+					activeSet.addOptimized(new Segment(side.rect.y_left_lower, side.rect.y_right_upper));
 					lastChanged = side.rect.x_left_lower;
 				}
 			} else {
-				res += activeSet.coversLength() * (side.rect.x_right_upper - lastChanged);
-				activeSet.remove(new Segment(side.rect.y_left_lower, side.rect.y_right_upper));
+				res += activeSet.coversLengthOptimized() * (side.rect.x_right_upper - lastChanged);
+				activeSet.removeOptimized(new Segment(side.rect.y_left_lower, side.rect.y_right_upper));
 				lastChanged = side.rect.x_right_upper;
 			}
 		}
